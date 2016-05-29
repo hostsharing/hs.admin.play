@@ -11,6 +11,11 @@ from .exceptions import MissingArgumentError, InvalidArgumentError
 from .exceptions import APIInitializationError, APIInvokationError
 from .exceptions import AmbiguousResultsError
 
+try:
+    string = (str, unicode,)
+except:
+    string = (str,)
+
 
 
 class Module(object):
@@ -22,7 +27,7 @@ class Module(object):
         def parse_argsfile(argsfile):
             """ Returns parsed params provided by argsfile """
 
-            args = split(file(argsfile).read())
+            args = split(open(argsfile).read())
             params = dict()
             for arg in args:
 
@@ -43,37 +48,37 @@ class Module(object):
             if not isinstance(hsadmin, dict):
                 return False
 
-            if not (hsadmin.has_key('cas') and
+            if not (('cas' in hsadmin) and
                     isinstance(hsadmin['cas'], dict)):
                 return False
             else:
                 cas = hsadmin['cas']
                 if not (isinstance(cas, dict) and
-                        cas.has_key('uri') and
-                        isinstance(cas['uri'], basestring) and
-                        cas.has_key('service') and
-                        isinstance(cas['service'], basestring)):
+                        ('uri' in cas) and
+                        isinstance(cas['uri'], string) and
+                        ('service' and cas) and
+                        isinstance(cas['service'], string)):
                     return False
 
-            if not hsadmin.has_key('credentials'):
+            if 'credentials' not in hsadmin:
                 return False
             else:
                 credentials = hsadmin['credentials']
                 if not (isinstance(credentials, dict) and
-                        credentials.has_key('username') and
-                        isinstance(credentials['username'], basestring) and
-                        credentials.has_key('password') and
-                        isinstance(credentials['password'], basestring)):
+                        ('username' in credentials) and
+                        isinstance(credentials['username'], string) and
+                        ('password' in credentials) and
+                        isinstance(credentials['password'], string)):
                     return False
 
-            if not hsadmin.has_key('backends'):
+            if 'backends' not in hsadmin:
                 return False
             else:
                 backends = hsadmin['backends']
                 if not isinstance(backends, list) or (len(backends) == 0):
                     return False
                 for backend in backends:
-                    if not isinstance(backend, basestring):
+                    if not isinstance(backend, string):
                         return False
 
             return True
@@ -81,7 +86,7 @@ class Module(object):
 
         params = parse_argsfile(argsfile)
 
-        if not params.has_key('hsadmin'):
+        if 'hsadmin' not in params:
             raise MissingArgumentError('Module argument "hsadmin" is missing.')
 
         hsadmin = params['hsadmin']
@@ -95,10 +100,10 @@ class Module(object):
         except Exception as exception:
             raise APIInitializationError('HSAdmin API initialization failed: ' + exception.message)
 
-        if not api.modules.has_key(module):
+        if module not in api.modules:
             raise NotImplementedError('HSAdmin API does not implement the module: ' + module)
 
-        if params.has_key('state'):
+        if 'state' in params:
             state = params['state']
             del params['state']
             if not state in ('present', 'absent'):
@@ -109,8 +114,9 @@ class Module(object):
         # Patch module properties to provide information
         # about the property being part of the unique identifier
         # until that information is provided by the backends theirselves
-        for key, value in api.modules[module].properties.iteritems():
-            value['id'] = (key in ids)
+        properties = api.modules[module].properties
+        for key in properties.keys():
+            properties[key]['id'] = (key in ids)
 
         self.module = api.modules[module]
         self.params = params
@@ -123,13 +129,14 @@ class Module(object):
             """ Returns where data structure """
 
             ids = list()
-            for key, value in module.properties.iteritems():
-                if value.has_key('id') and value['id']:
+            properties = module.properties
+            for key in module.properties.keys():
+                if ('id' in properties[key]) and properties[key]['id']:
                     ids.append(key)
 
             where_params = dict()
             for key in ids:
-                if not params.has_key(key):
+                if key not in params:
                     raise MissingArgumentError('Module argument "%s" is missing.' % key)
                 where_params[key] = self.params[key]
 
@@ -140,11 +147,11 @@ class Module(object):
             """ Returns where data structure """
 
             set_params = dict()
-            for key, value in params.iteritems():
-                if not module.properties.has_key(key):
+            for key in params.keys():
+                if key not in module.properties:
                     raise InvalidArgumentError('Module argument "%s" is invalid.' % key)
-                if not current.has_key(key) or (current[key] != value):
-                    set_params[key] = value
+                if (key not in current) or (current[key] != params[key]):
+                    set_params[key] = params[key]
 
             return set_params
 
@@ -226,4 +233,4 @@ class Module(object):
         if (state == 'absent') and retrieved:
             changed = delete(module, params)
 
-        print dumps({'changed': changed})
+        print(dumps({'changed': changed}))
