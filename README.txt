@@ -2,6 +2,7 @@ Introduction
 ============
 
 This package provides a generic interface between Ansible and the Hostsharing HSAdmin API package.
+PROJEKT IST UMGEZOGEN: https://dev.hostsharing.net/repositories/
 
 Example
 -------
